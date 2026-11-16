@@ -59,6 +59,22 @@ label.ck{display:flex;gap:8px;align-items:center;cursor:pointer}
 .miss{padding:12px 0;border-top:1px solid var(--line)}
 .miss small{display:block;color:var(--ok);font-weight:700;margin-top:4px}
 .hi{background:var(--card);border:1px solid var(--line);border-left:8px solid var(--h);border-radius:16px;padding:14px;margin-top:12px}.hi small{display:block;margin-top:6px}.wx{color:var(--bad)}.rx{color:var(--ok);font-weight:700}.sb{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:8px}.sb i{display:block;height:100%;background:linear-gradient(90deg,var(--c3),var(--c4))}input[type=search],input[type=password]{flex:1;min-width:180px;font:inherit;padding:10px 12px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink)}.chips+.row{margin-bottom:6px}.ft{text-align:center;color:var(--mut);font-size:13px;padding:8px 16px 28px}summary{cursor:pointer;font-weight:700}textarea{width:100%;font:inherit;padding:10px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink)}.wk{display:flex;gap:6px;align-items:flex-end;height:44px;margin-top:8px}.wk i{flex:1;background:linear-gradient(var(--c1),var(--c0));border-radius:6px}
+.mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;margin-top:14px}
+.mod{display:flex;flex-direction:column;gap:2px;text-align:left;padding:10px 12px;border:2px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);font:inherit;cursor:pointer;transition:transform .12s,border-color .12s}
+.mod:hover{transform:translateY(-2px);border-color:var(--h)}
+.mod b{font-size:18px}.btn.sm{padding:9px 11px;font-size:13px}.mod small{color:var(--mut);font-size:12px;line-height:1.3}
+.mod .sb{height:6px;margin-top:6px}
+.mod.on{border-color:var(--h);background:color-mix(in srgb,var(--h) 15%,var(--card));box-shadow:0 6px 18px color-mix(in srgb,var(--h) 25%,transparent)}
+.mod:focus-visible,.trow:focus-visible{outline:3px solid var(--c4);outline-offset:2px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:4px 0 14px}
+.kpis div{background:var(--bg);border-radius:12px;padding:8px 4px;text-align:center}
+.kpis b{display:block;font-size:20px;line-height:1.2}.kpis small{display:block;color:var(--mut);font-size:11px}
+.trow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;width:100%;text-align:left;padding:8px 12px;margin-top:6px;border:2px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;font-size:14px;cursor:pointer}
+.trow small{color:var(--mut);white-space:nowrap}.trow .sb{grid-column:1/-1;height:5px;margin-top:3px}
+.trow.on{border-color:var(--c0);background:color-mix(in srgb,var(--c0) 14%,var(--card))}
+.panel>summary,details.panel>summary{cursor:pointer}
+.drop{padding:14px 12px}
+@media (max-width:420px){.kpis b{font-size:17px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -74,9 +90,11 @@ const shuf=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1
 const hue=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))%360;return h};
 const hash=s=>{let h=5381;for(const c of s)h=(h*33^c.charCodeAt(0))>>>0;return h.toString(36)};
 let bank=store('mq:bank')||[],mastered=new Set(store('mq:ok')||[]);
-let cfg={topics:new Set(),n:20,weak:false,study:false},S=null,msg='';
+let cfg={mod:'',topics:new Set(),n:20,weak:false,study:false},S=null,msg='';
 let stats=store('mq:st')||{},sess=store('mq:ss')||[],hv={tab:'m',q:''};
 const nWrong=()=>bank.filter(q=>stats[q.id]&&stats[q.id].w).length;
+const modOf=t=>(t.match(/^М(\d+)/)||[])[1]||'0',modName=m=>m==='0'?'Інше':'Модуль '+m,topicName=t=>t.replace(/^М\d+\s*·\s*/,'');
+function mstat(L){let c=0,w=0,seen=0,m=0,wr=0;for(const q of L){const s=stats[q.id];if(s){c+=s.c;w+=s.w;if(s.c+s.w)seen++;if(s.w&&!mastered.has(q.id))wr++}if(mastered.has(q.id))m++}return{n:L.length,c,w,seen,m,wrong:wr,acc:c+w?Math.round(c/(c+w)*100):null,pm:L.length?Math.round(m/L.length*100):0}}
 let sr=store('mq:sr')||{},fav=store('mq:fav')||{},nt=store('mq:nt')||{},day=store('mq:day')||{},fs=store('mq:fs')||1,th=store('mq:th')||'auto',ev={p:0,sus:1};
 const DAY=864e5,IV=[0,1,3,7,14,30],dk=o=>new Date(Date.now()-o*DAY).toISOString().slice(0,10);
 const applyUI=()=>{app.style.zoom=fs;th==='auto'?document.documentElement.removeAttribute('data-theme'):document.documentElement.dataset.theme=th};
@@ -156,17 +174,25 @@ async function addFiles(files){
 
 /* ---------- головний екран ---------- */
 function home(){applyBuiltin();
-  const T=[...new Set(bank.map(q=>q.t))];
-  app.innerHTML=`<h1>Тест-тренажер</h1>
-  <p class="sub">Завантажте PDF або TXT із тестами. Перший варіант у кожному питанні вважається правильним, а в тренажері я перемішаю їх.</p>
-  <label class="drop" id="drop"><input type="file" id="f" accept=".pdf,.txt" multiple hidden><b>Перетягніть файли сюди</b><span>або натисніть, щоб вибрати PDF чи TXT</span></label>
-  <div id="msg">${esc(msg)}</div><details class='panel'><summary>Вставити текст, перенести прогрес, вигляд</summary><textarea id='pt' rows='4' placeholder='Вставте тести сюди…'></textarea><div class='row'><button class='btn ghost' id='pb'>Додати з тексту</button><button class='btn ghost' id='ex'>Код прогресу</button><button class='btn ghost' id='im'>Ввести код</button><button class='btn ghost' id='fs'>Aa</button><button class='btn ghost' id='th'>Тема: ${th}</button></div></details>${dayBlock()}<div class='panel'><h3>💾 Резервна копія</h3>${bk()}<p class='sub' style='margin:0 0 10px'>Файл містить питання, історію відповідей, розклад повторень, закладки, нотатки та пояснення.</p><div class='row' style='margin:0'><button class='btn' id='sv'>Зберегти у файл</button><label class='btn ghost' style='cursor:pointer'>📂 Завантажити з файлу<input type='file' id='ld' accept='.json,application/json' hidden></label></div></div>
-  ${bank.length?`<div class="panel"><h3>У базі ${bank.length} питань, вивчено ${bank.filter(q=>mastered.has(q.id)).length}, з поясненнями ${bank.filter(q=>exc[q.id]).length}</h3>
-  <div class="chips">${T.map(t=>`<button class="chip ${cfg.topics.has(t)?'on':''}" style="--h:hsl(${hue(t)} 70% 45%)" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div>
-  <div class="row"><label>Питань за раз: <select id="n">${[10,20,40,0].map(n=>`<option value="${n}" ${cfg.n===n?'selected':''}>${n||'усі'}</option>`).join('')}</select></label>
+  const inMod=q=>!cfg.mod||modOf(q.t)===cfg.mod;
+  const MS=[...new Set(bank.map(q=>modOf(q.t)))].sort((a,b)=>(a==='0')-(b==='0')||a-b);
+  if(cfg.mod&&!MS.includes(cfg.mod))cfg.mod='';
+  const L=bank.filter(inMod),s=mstat(L),T=[...new Set(L.map(q=>q.t))],due=L.filter(q=>sr[q.id]&&sr[q.id].n<=Date.now()).length;
+  const mh=m=>m===''?'var(--c0)':COL[(+m+4)%5];
+  const card=(m,l)=>{const x=mstat(m===''?bank:bank.filter(q=>modOf(q.t)===m));return `<button class="mod ${cfg.mod===m?'on':''}" style="--h:${mh(m)}" data-m="${m}" aria-pressed="${cfg.mod===m}"><b>${l}</b><small>${x.n} пит.<br>${x.acc===null?'нове':x.acc+'% вірно'}</small><div class="sb"><i style="width:${x.pm}%"></i></div></button>`};
+  const kp=(v,l,c='')=>`<div><b class="${c}">${v}</b><small>${l}</small></div>`;
+  const rows=cfg.mod?T.map(t=>{const x=mstat(L.filter(q=>q.t===t));return `<button class="trow ${cfg.topics.has(t)?'on':''}" data-t="${esc(t)}"><span>${esc(topicName(t))}</span><small class="${x.acc!==null&&x.acc<60?'wx':''}">${x.acc===null?'нове':x.acc+'%'} · ${x.m}/${x.n}</small><div class="sb"><i style="width:${x.pm}%"></i></div></button>`}).join(''):'';
+  const detail=bank.length?`<div class="panel" style="--h:${mh(cfg.mod)};border-top:6px solid ${mh(cfg.mod)}"><h3 style="display:flex;justify-content:space-between;gap:8px"><span>${cfg.mod?modName(cfg.mod):'Усі модулі'}</span><small style="color:var(--mut);font-weight:400">${T.length} тем · вивчено ${s.m}/${s.n}</small></h3>
+  <div class="kpis">${kp(s.pm+'%','вивчено')}${kp(s.acc===null?'—':s.acc+'%','точність',s.acc!==null&&s.acc<60?'wx':'')}${kp(s.wrong,'проблемних',s.wrong?'wx':'')}${kp(s.n-s.seen,'нових')}</div>
+  <div class="row" style="margin:0"><button class="btn" id="go">▶ ${cfg.topics.size?'Тренувати вибране':cfg.mod?'Почати модуль':'Почати'}</button>${due?`<button class="btn sm" id="due" style="padding:13px 18px;background:linear-gradient(90deg,var(--c3),var(--c4))">🔁 Повторити (${due})</button>`:''}${s.wrong?`<button class="btn ghost sm" id="mw">Помилки (${s.wrong})</button>`:''}<button class="btn ghost sm" id="hist">📒 Історія</button><button class="btn ghost sm" id="edt">✎ Питання</button></div>
+  ${cfg.mod?`<p class="sub" style="margin:14px 0 0;font-size:13px">Теми модуля. Торкніться, щоб тренувати лише потрібні:</p>${rows}`:`<p class="sub" style="margin:12px 0 0;font-size:13px">Оберіть модуль вище, щоб побачити його теми та окрему статистику.</p>`}
+  <details style="margin-top:14px"><summary><b>Налаштування тренування</b></summary><div class="row"><label>Питань за раз: <select id="n">${[10,20,40,0].map(n=>`<option value="${n}" ${cfg.n===n?'selected':''}>${n||'усі'}</option>`).join('')}</select></label>
   <label class="ck"><input type="checkbox" id="weak" ${cfg.weak?'checked':''}>Лише нові та помилкові</label>
-  <label class="ck"><input type="checkbox" id="study" ${cfg.study?'checked':''}>Режим вивчення: одразу показувати відповідь</label><label class='ck'><input type='checkbox' id='exam' ${cfg.exam?'checked':''}>Режим іспиту (таймер, без підказок)</label><label class='ck'><input type='checkbox' id='cards' ${cfg.cards?'checked':''}>Картки (знаю / не знаю)</label><label class='ck'><input type='checkbox' id='fav' ${cfg.fav?'checked':''}>Лише закладки ★</label><label class='ck'><input type='checkbox' id='auto' ${cfg.auto!==false?'checked':''}>💡 Автопояснення після відповіді</label></div>
-  <div class="row"><button class="btn" id="go">Почати</button>${dueN()?`<button class='btn' id='due' style='background:linear-gradient(90deg,var(--c3),var(--c4))'>Повторити сьогодні (${dueN()})</button>`:''}<button class='btn ghost' id='edt'>✎ Перевірка питань</button><button class="btn ghost" id="hist">📒 Історія (${nWrong()})</button><button class="btn ghost" id="clr">Очистити базу</button></div></div>`:''}`;
+  <label class="ck"><input type="checkbox" id="study" ${cfg.study?'checked':''}>Режим вивчення: одразу показувати відповідь</label><label class='ck'><input type='checkbox' id='exam' ${cfg.exam?'checked':''}>Режим іспиту (таймер, без підказок)</label><label class='ck'><input type='checkbox' id='cards' ${cfg.cards?'checked':''}>Картки (знаю / не знаю)</label><label class='ck'><input type='checkbox' id='fav' ${cfg.fav?'checked':''}>Лише закладки ★</label><label class='ck'><input type='checkbox' id='auto' ${cfg.auto!==false?'checked':''}>💡 Автопояснення після відповіді</label></div></details></div>`:'';
+  const data=`<details class='panel' ${bank.length?'':'open'}><summary><b>⚙️ Файли, копія, вигляд</b></summary><div style='height:12px'></div><label class="drop" id="drop"><input type="file" id="f" accept=".pdf,.txt" multiple hidden><b>Перетягніть файли сюди</b><span>або натисніть, щоб вибрати PDF чи TXT (перший варіант правильний)</span></label><textarea id='pt' rows='3' placeholder='Або вставте тести сюди…' style='width:100%;margin-top:10px'></textarea><div class='row'><button class='btn ghost' id='pb'>Додати з тексту</button><button class='btn ghost' id='ex'>Код прогресу</button><button class='btn ghost' id='im'>Ввести код</button><button class='btn ghost' id='fs'>Aa</button><button class='btn ghost' id='th'>Тема: ${th}</button></div>
+  <h3 style='margin-top:18px'>💾 Резервна копія</h3>${bk()}<p class='sub' style='margin:0 0 10px'>Файл містить питання, історію відповідей, розклад повторень, закладки, нотатки та пояснення.</p><div class='row' style='margin:0'><button class='btn' id='sv'>Зберегти у файл</button><label class='btn ghost' style='cursor:pointer'>📂 Завантажити з файлу<input type='file' id='ld' accept='.json,application/json' hidden></label>${bank.length?`<button class="btn ghost" id="clr">Очистити базу</button>`:''}</div></details>`;
+  app.innerHTML=`<h1>Тест-тренажер</h1>${bank.length?'':'<p class="sub">Завантажте PDF або TXT із тестами. Перший варіант у кожному питанні вважається правильним, а в тренажері я перемішаю їх.</p>'}
+  ${bank.length?`<div class="mods">${card('','Усі')}${MS.map(m=>card(m,m==='0'?'Інше':'М'+m)).join('')}</div>`:''}${detail}${bank.length?dayBlock():''}<div id="msg">${esc(msg)}</div>${data}`;
   const d=document.getElementById('drop'),f=document.getElementById('f');
   f.onchange=()=>addFiles([...f.files]);
   const $=i=>document.getElementById(i);
@@ -180,13 +206,15 @@ function home(){applyBuiltin();
   d.ondragover=e=>{e.preventDefault();d.classList.add('over')};
   d.ondragleave=()=>d.classList.remove('over');
   d.ondrop=e=>{e.preventDefault();d.classList.remove('over');addFiles([...e.dataTransfer.files])};
-  app.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const t=b.dataset.t;cfg.topics.has(t)?cfg.topics.delete(t):cfg.topics.add(t);home()});
+  const keep=f=>{const y=scrollY;f();home();scrollTo(0,y)};
+  app.querySelectorAll('.mod').forEach(b=>b.onclick=()=>keep(()=>{cfg.mod=b.dataset.m===cfg.mod?'':b.dataset.m;cfg.topics.clear()}));
+  app.querySelectorAll('.trow').forEach(b=>b.onclick=()=>keep(()=>{const t=b.dataset.t;cfg.topics.has(t)?cfg.topics.delete(t):cfg.topics.add(t)}));
   const g=id=>document.getElementById(id);
   if(g('go')){
     g('n').onchange=e=>cfg.n=+e.target.value;
     g('weak').onchange=e=>cfg.weak=e.target.checked;
     g('study').onchange=e=>cfg.study=e.target.checked;g('exam').onchange=e=>cfg.exam=e.target.checked;g('cards').onchange=e=>cfg.cards=e.target.checked;g('fav').onchange=e=>cfg.fav=e.target.checked;g('auto').onchange=e=>cfg.auto=e.target.checked;
-    g('go').onclick=()=>start();g('hist').onclick=()=>showHist();g('edt').onclick=()=>showEdit();const du=g('due');if(du)du.onclick=()=>start(dueList());
+    g('go').onclick=()=>start();g('hist').onclick=()=>showHist();g('edt').onclick=()=>showEdit();const du=g('due');if(du)du.onclick=()=>start(dueList().filter(inMod));const mw=g('mw');if(mw)mw.onclick=()=>start(L.filter(q=>stats[q.id]&&stats[q.id].w&&!mastered.has(q.id)));
     g('clr').onclick=()=>{if(confirm('Видалити всі питання та прогрес?')){bank=[];mastered=new Set();store('mq:bank',[]);store('mq:ok',[]);msg='';home()}};
   }
 }
@@ -194,7 +222,7 @@ function home(){applyBuiltin();
 /* ---------- тренування ---------- */
 const prep=q=>({...q,s:shuf(q.o.map((t,i)=>({t,ok:i===0})))});
 function start(retry){
-  let pool=retry||bank.filter(q=>(!cfg.topics.size||cfg.topics.has(q.t))&&!(cfg.weak&&mastered.has(q.id))&&(!cfg.fav||fav[q.id]));
+  let pool=retry||bank.filter(q=>(!cfg.mod||modOf(q.t)===cfg.mod)&&(!cfg.topics.size||cfg.topics.has(q.t))&&!(cfg.weak&&mastered.has(q.id))&&(!cfg.fav||fav[q.id]));
   if(!pool.length){msg='За цими умовами питань немає. Змініть тему або вимкніть фільтр «Лише нові та помилкові».';return home()}
   pool=shuf(pool);if(!retry&&cfg.n)pool=pool.slice(0,cfg.n);
   if(S)clearInterval(S.iv);S={q:pool.map(prep),n0:pool.length,i:0,ok:0,miss:[],streak:0,sel:null,flip:0,t0:Date.now(),lim:pool.length*45};if(cfg.exam)S.iv=setInterval(tick,1000);
@@ -245,7 +273,7 @@ function fin(){
 /* ---------- історія ---------- */
 function showHist(){
   const m=hv.tab;let TT=[];
-  const rows=bank.filter(q=>stats[q.id]&&stats[q.id].w&&(!hv.q||(q.q+' '+q.o[0]).toLowerCase().includes(hv.q))).sort((a,b)=>stats[b.id].w-stats[a.id].w||(stats[b.id].d||0)-(stats[a.id].d||0));
+  const rows=bank.filter(q=>(!cfg.mod||modOf(q.t)===cfg.mod)&&stats[q.id]&&stats[q.id].w&&(!hv.q||(q.q+' '+q.o[0]).toLowerCase().includes(hv.q))).sort((a,b)=>stats[b.id].w-stats[a.id].w||(stats[b.id].d||0)-(stats[a.id].d||0));
   const tab=(k,l)=>`<button class="chip ${m===k?'on':''}" style="--h:var(--c0)" data-m="${k}">${l}</button>`;
   let body='';
   if(m==='m'){
@@ -253,10 +281,10 @@ function showHist(){
   }else if(m==='s'){
     body=sess.map((s,i)=>`<div class="hi" style="--h:var(--c4)"><b>${new Date(s.d).toLocaleString('uk-UA',{dateStyle:'medium',timeStyle:'short'})}</b> · ${s.p}% (${s.ok} з ${s.n})<div class="sb"><i style="width:${s.p}%"></i></div>${s.m.length?`<div class="row"><button class="btn ghost" data-r="${i}">Повторити помилки (${s.m.length})</button></div>`:''}</div>`).join('')||'<p class="sub">Сесій ще немає.</p>';
   }else{
-    TT=[...new Set(bank.map(q=>q.t))].map(t=>{let w=0,c=0;bank.forEach(q=>{if(q.t===t&&stats[q.id]){w+=stats[q.id].w;c+=stats[q.id].c}});return{t,w,c,p:w+c?Math.round(c/(w+c)*100):null}}).sort((a,b)=>(a.p===null?101:a.p)-(b.p===null?101:b.p));
+    TT=[...new Set(bank.filter(q=>!cfg.mod||modOf(q.t)===cfg.mod).map(q=>q.t))].map(t=>{let w=0,c=0;bank.forEach(q=>{if(q.t===t&&stats[q.id]){w+=stats[q.id].w;c+=stats[q.id].c}});return{t,w,c,p:w+c?Math.round(c/(w+c)*100):null}}).sort((a,b)=>(a.p===null?101:a.p)-(b.p===null?101:b.p));
     body=TT.map((x,i)=>`<div class="hi" style="--h:hsl(${hue(x.t)} 75% 50%)"><b>${esc(x.t)}</b> · ${x.p===null?'ще не проходили':x.p+'% вірно ('+x.c+' з '+(x.w+x.c)+')'}<div class="sb"><i style="width:${x.p||0}%"></i></div><div class="row"><button class="btn ghost" data-t="${i}">Тренувати тему</button></div></div>`).join('')+'<p class="sub">Слабкі теми зверху.</p>';
   }
-  app.innerHTML=`<div class="top"><button class="btn ghost" id="b">← Назад</button><span>Відповідей: ${Object.values(stats).reduce((a,s)=>a+s.w+s.c,0)}</span></div><h1>Історія</h1><div class="chips">${tab('m','Мої помилки ('+nWrong()+')')}${tab('s','Сесії ('+sess.length+')')}${tab('t','Теми')}</div>${body}<div class="row"><button class="btn ghost" id="ch">Очистити історію</button></div>`;
+  app.innerHTML=`<div class="top"><button class="btn ghost" id="b">← Назад</button><span>Відповідей: ${Object.values(stats).reduce((a,s)=>a+s.w+s.c,0)}</span></div><h1>Історія</h1>${cfg.mod?`<p class="sub" style="margin-top:0">Показано: ${modName(cfg.mod)}. Змінити можна на головній.</p>`:''}<div class="chips">${tab('m','Мої помилки ('+nWrong()+')')}${tab('s','Сесії ('+sess.length+')')}${tab('t','Теми')}</div>${body}<div class="row"><button class="btn ghost" id="ch">Очистити історію</button></div>`;
   document.getElementById('b').onclick=home;
   app.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{hv.tab=b.dataset.m;showHist()});
   const sq=document.getElementById('sq');if(sq)sq.oninput=()=>{hv.q=sq.value.trim().toLowerCase();showHist();const n=document.getElementById('sq');n.focus();n.setSelectionRange(n.value.length,n.value.length)};
